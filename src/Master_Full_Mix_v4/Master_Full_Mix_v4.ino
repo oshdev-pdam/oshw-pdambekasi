@@ -11,9 +11,9 @@
 #define VNH_A   A3 
 #define VNH_B   A4 
 #define VNH_CS  A2
-#define M0      3 
-#define M1      2 
-#define AUX     4 
+#define M0      3  //for LoRa, not used
+#define M1      2  //for LoRa, not used
+#define AUX     4  //for LoRa, not used
 #define SENSOR  A0
 #define BAT     A8
 
@@ -101,8 +101,8 @@ void setup() {
   
   digitalWrite(VNH_A, LOW);
   digitalWrite(VNH_B, LOW);
-  digitalWrite(M0, HIGH);
-  digitalWrite(M1, HIGH);
+  //digitalWrite(M0, HIGH);
+  //digitalWrite(M1, HIGH);
   
   if (! rtc.begin()) {
     Serial.println("Couldn't find RTC");
@@ -118,10 +118,20 @@ void setup() {
    }else{
     Serial.println("card initialized.");
    }
+
+   for (int i = 0; i <= 53; i++) { //turn off all digital pins
+    pinMode(i, OUTPUT);
+   }
+  
+   WDTCSR = (3<<3); //enable watchdog prescaler change (set WDCE to 1) - also resets
+   WDTCSR = (6); //set prescaler to have 1 sec timeout / delay
+   WDTCSR |= (1<<6); //enable interrupt mode (set WDIE to 1)
+   
+  //ENABLE SLEEP - this enables the sleep mode
+  SMCR |= (1 << 2); //power down mode
 }
 
 float pressureData;
-int tempTime = 0;
 int waitTime = 600;
 int timeCounter = waitTime; 
 bool firstRun = true;
@@ -148,22 +158,28 @@ uint32_t quotaData;
     
 int readLoraTimeStart = 0;
 int readLoraTimeEnd = 15;
+DateTime now = rtc.now();
+int tempTime = now.second();
   
 void loop() {
 
   digitalWrite(LED_PIN, LOW);
+  digitalWrite(VNH_A, LOW);
+  digitalWrite(VNH_B, LOW);
+
+  LowPowerSleep(60); //deep sleep for ~60 sec
   
-  DateTime now = rtc.now();
-  if (firstRun){
-    tempTime = now.second();
-    firstRun = false;
-  }
+  now = rtc.now();
+  //if (firstRun){
+  //  tempTime = now.second();
+  //  firstRun = false;
+  //}
   tempTime = now.second()-tempTime;
-  if(tempTime<0)tempTime = 1;
-  if(tempTime == 1){
+  if(tempTime<0)tempTime += 60;
+  //if(tempTime == 1){
     Serial.print("RTC Count: ");
     Serial.println(timeCounter);
-  }
+  //}
   timeCounter += tempTime;
   tempTime = now.second();
   //Serial.print(timeCounter);
@@ -194,12 +210,12 @@ void loop() {
     digitalWrite(VNH_A, HIGH);
     digitalWrite(VNH_B, LOW);
 
-    delay(1000);
+    //delay(1000);
     modem.init();
     Serial.print(F("Waiting for network..."));
     if (!modem.waitForNetwork()) {
       Serial.println(" Network fail");
-      delay(1000);
+      //delay(1000);
       return;
     }
     Serial.println(" OK");
@@ -211,14 +227,14 @@ void loop() {
     Serial.print(F("Waiting for network..."));
     if (!modem.waitForNetwork()) {
       Serial.println(" Network fail");
-      delay(1000);
+      //delay(1000);
       return;
     }
     Serial.print(F("Connecting to "));
     Serial.print(apn);
     if (!modem.gprsConnect(apn, user, pass)) {
       Serial.println(" GPRS fail");
-      delay(1000);
+      //delay(1000);
       return;
     }
     Serial.println(" OK");
@@ -251,9 +267,9 @@ void loop() {
         Serial.println(logBuf);
       }
       
-      digitalWrite(M0, LOW);
-      digitalWrite(M1, LOW);
-      delay(2000);
+      //digitalWrite(M0, LOW);
+      //digitalWrite(M1, LOW);
+      //delay(2000);
       
       vnh_curData = getVNHCurrentSensor();
       vnh_totalData += vnh_curData;
@@ -382,8 +398,8 @@ void loop() {
     digitalWrite(VNH_A, LOW);
     digitalWrite(VNH_B, LOW);
     
-    digitalWrite(M0, HIGH);
-    digitalWrite(M1, HIGH);
+    //digitalWrite(M0, HIGH);
+    //digitalWrite(M1, HIGH);
     
     vnh_curData = getVNHCurrentSensor();
     vnh_curDataInt = (uint32_t) vnh_curData; 
@@ -557,7 +573,8 @@ uint32_t getRemainingQuota(){
     if(timeout==0){
       break;
     }
-    delay(1000);
+    //delay(1000);
+    LowPowerSleep(1);
   }
   quotaBuf[index] = 0;
 
@@ -565,5 +582,24 @@ uint32_t getRemainingQuota(){
   Serial.println(quotaBuf);
   
   return atoi(quotaBuf);
+}
+
+void LowPowerSleep(int period){
+  SMCR |= 1; //enable sleep
+  //Disable ADC before sleep
+  ADCSRA &= ~(1 << 7);
+  for(int i=0; i<=period; i++){ 
+    //BOD DISABLE - this must be called right before the __asm__ sleep instruction
+    MCUCR |= (3 << 5); //set both BODS and BODSE at the same time
+    MCUCR = (MCUCR & ~(1 << 5)) | (1 << 6); //then set the BODS bit and clear the BODSE bit at the same time
+    __asm__  __volatile__("sleep");//in line assembler to go to sleep
+  }
+  SMCR &= ~(1); //disable sleep
+  //Enable ADC after waking up
+  ADCSRA |= (1 << 7);
+}
+
+ISR(WDT_vect){
+  //dummy interrupt handler to prevent reset
 }
 
