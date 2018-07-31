@@ -18,6 +18,8 @@
 #define BAT     A8
 
 #define MAX_TX_SIZE 58
+#include "Queue.h":
+Queue<char> queue(MAX_TX_SIZE * 3);
 
 #define DATA_PRESSURE '@'
 #define DATA_CURSENSOR '#'
@@ -45,17 +47,16 @@ const char apn[]  = "internet";
 const char user[] = "";
 const char pass[] = "";
 
-
 // Name of the server we want to connect to
 const char server[]   = "io.adafruit.com";
 const int  port       = 80;
 const char resource[] = "/api/v2/madiqbal/feeds";
-const char feedPressureBar[] = "/no5-pressure-bar/data";
-const char feedPressurePsi[] = "/no5-pressure-psi/data";
-const char feedCurSensor[] = "/no5-cursensor/data";
-const char feedBatVoltage[] = "/no5-batvoltage/data";
-const char feedTempCels[] = "/no5-tempcels/data";
-const char feedQuota[] = "/no5-quota/data";
+const char feedPressureBar[] = "/no4-pressure-bar/data";
+const char feedPressurePsi[] = "/no4-pressure-psi/data";
+const char feedCurSensor[] = "/no4-cursensor/data";
+const char feedBatVoltage[] = "/no4-batvoltage/data";
+const char feedTempCels[] = "/no4-tempcels/data";
+const char feedQuota[] = "/no4-quota/data";
 
 #include <TinyGsmClient.h>
 #include <ArduinoHttpClient.h>
@@ -84,18 +85,18 @@ float sensitivity = 100.0 / 500.0; //100mA per 500mV = 0.2
 float Vref = 2500; // Output voltage with no current: ~ 2500mV or 2.5V
 
 void setup() {
+
+  Serial.begin(9600);
   
   pinMode(LED_PIN, OUTPUT);  
 
   pinMode(VNH_A, OUTPUT);
   pinMode(VNH_B, OUTPUT);
-  pinMode(M0, OUTPUT);
-  pinMode(M1, OUTPUT);
-  pinMode(AUX, INPUT);
+  //pinMode(M0, OUTPUT);
+  //pinMode(M1, OUTPUT);
+  //pinMode(AUX, INPUT);
   pinMode(SENSOR, INPUT);
   digitalWrite(LED_PIN, LOW);
-
-  Serial.begin(9600);
   
   SerialAT.begin(9600); //Serial1
   
@@ -104,7 +105,8 @@ void setup() {
   //digitalWrite(M0, HIGH);
   //digitalWrite(M1, HIGH);
   
-  if (! rtc.begin()) {
+  
+/*  if (! rtc.begin()) {
     Serial.println("Couldn't find RTC");
   }
   
@@ -112,16 +114,19 @@ void setup() {
     Serial.println("RTC is NOT running!");
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   }
-
-   if (!SD.begin(chipSelect)) {
-     Serial.println("Card failed, or not present");
-   }else{
-    Serial.println("card initialized.");
-   }
-
-   for (int i = 0; i <= 53; i++) { //turn off all digital pins
-    pinMode(i, OUTPUT);
-   }
+*/
+  
+//   if (!SD.begin(chipSelect)) {
+//    Serial.println("Card failed, or not present");
+//   }else{
+//    Serial.println("card initialized.");
+//   }
+  
+//   for (int i = 0; i <= 53; i++) { //turn off all digital pins
+//    if( i==0 || i==1 || i==18 || i==19 || i==20 || i==21 || i==45 || i==46)continue;
+//    pinMode(i, OUTPUT);
+//   }
+Serial.println("START 3");
   
    WDTCSR = (3<<3); //enable watchdog prescaler change (set WDCE to 1) - also resets
    WDTCSR = (6); //set prescaler to have 1 sec timeout / delay
@@ -129,6 +134,7 @@ void setup() {
    
   //ENABLE SLEEP - this enables the sleep mode
   SMCR |= (1 << 2); //power down mode
+
 }
 
 float pressureData;
@@ -158,8 +164,8 @@ uint32_t quotaData;
     
 int readLoraTimeStart = 0;
 int readLoraTimeEnd = 15;
-DateTime now = rtc.now();
-int tempTime = now.second();
+//DateTime now = rtc.now();
+int tempTime = 0; //now.second();
   
 void loop() {
 
@@ -167,30 +173,36 @@ void loop() {
   digitalWrite(VNH_A, LOW);
   digitalWrite(VNH_B, LOW);
 
-  LowPowerSleep(60); //deep sleep for ~60 sec
+  //Serial.println("10 sec to sleep");
+  //delay(10000);
   
-  now = rtc.now();
-  //if (firstRun){
-  //  tempTime = now.second();
-  //  firstRun = false;
-  //}
+  //Serial.println("sleep 30sec");
+  //delay(1000);
+  //LowPowerSleep(360); //deep sleep for ~60 sec
+  
+/*  DateTime now = rtc.now();
+  if (firstRun){
+    tempTime = now.second();
+    firstRun = false;
+  }
   tempTime = now.second()-tempTime;
-  if(tempTime<0)tempTime += 60;
+*/
+  //if(tempTime<0)tempTime += 60;
   //if(tempTime == 1){
-    Serial.print("RTC Count: ");
-    Serial.println(timeCounter);
+  //  Serial.print("RTC Count: ");
+  //  Serial.println(timeCounter);
   //}
-  timeCounter += tempTime;
-  tempTime = now.second();
+  //timeCounter += tempTime;
+  //tempTime = now.second();
   //Serial.print(timeCounter);
   if(timeCounter >= waitTime){
-    timeCounter = 0;
+    //timeCounter = 0;
     
-    sprintf(fileName, "%04d%02d%02d.txt",now.year(),now.month(),now.day());
-    Serial.println(fileName);
-    File dataFile = SD.open(fileName, FILE_WRITE);
+    //sprintf(fileName, "%04d%02d%02d.txt",now.year(),now.month(),now.day());
+    //Serial.println(fileName);
+    //File dataFile = SD.open(fileName, FILE_WRITE);
     vnh_totalData = 0;
-    if (dataFile) {
+/*    if (dataFile) {
       sprintf(logBuf, "@%02d%02d%02d",now.hour(),now.minute(),now.second());
       dataFile.print(logBuf);
       // print to the serial port too:
@@ -205,8 +217,8 @@ void loop() {
       // print to the serial port too:
       Serial.println(logBuf);
     }
-    
-    digitalWrite(LED_PIN, HIGH);
+*/    
+    //digitalWrite(LED_PIN, HIGH);
     digitalWrite(VNH_A, HIGH);
     digitalWrite(VNH_B, LOW);
 
@@ -251,22 +263,22 @@ void loop() {
       vnh_totalData += vnh_curData;
       vnh_curDataInt = (uint32_t) vnh_curData; 
       sprintf(logBuf, "!%db", vnh_curDataInt);   
-      if (dataFile) {
+/*      if (dataFile) {
         dataFile.print(logBuf);
         // print to the serial port too:
         Serial.println(logBuf);
       }
-  
+*/  
       vnh_curData = getVNHCurrentSensor();
       vnh_totalData += vnh_curData;
       vnh_curDataInt = (uint32_t) vnh_curData; 
       sprintf(logBuf, "!%dc", vnh_curDataInt);   
-      if (dataFile) {
+/*      if (dataFile) {
         dataFile.print(logBuf);
         // print to the serial port too:
         Serial.println(logBuf);
       }
-      
+*/      
       //digitalWrite(M0, LOW);
       //digitalWrite(M1, LOW);
       //delay(2000);
@@ -275,12 +287,12 @@ void loop() {
       vnh_totalData += vnh_curData;
       vnh_curDataInt = (uint32_t) vnh_curData; 
       sprintf(logBuf, "!%dd", vnh_curDataInt);   
-      if (dataFile) {
+/*      if (dataFile) {
         dataFile.print(logBuf);
         // print to the serial port too:
         Serial.println(logBuf);
       }
-  
+*/  
       batVoltData = getBattery();
       batVoltDataInt = (int) batVoltData;
 
@@ -298,36 +310,36 @@ void loop() {
       vnh_totalData += vnh_curData;
       vnh_curDataInt = (uint32_t) vnh_curData; 
       sprintf(logBuf, "!%de", vnh_curDataInt);   
-      if (dataFile) {
+/*      if (dataFile) {
         dataFile.print(logBuf);
         // print to the serial port too:
         Serial.println(logBuf);
       }
-      
+*/      
       uploadData(buf, feedBatVoltage,batVoltDataInt);
       
       vnh_curData = getVNHCurrentSensor();
       vnh_totalData += vnh_curData;
       vnh_curDataInt = (int) vnh_curData; 
       sprintf(logBuf, "!%df", vnh_curDataInt);   
-      if (dataFile) {
+/*      if (dataFile) {
         dataFile.print(logBuf);
         // print to the serial port too:
         Serial.println(logBuf);
       }
-      
+*/      
       uploadData(buf, feedTempCels,temp_DataInt);
      
       vnh_curData = getVNHCurrentSensor();
       vnh_totalData += vnh_curData;
       vnh_curDataInt = (uint32_t) vnh_curData; 
       sprintf(logBuf, "!%dg", vnh_curDataInt);   
-      if (dataFile) {
+/*      if (dataFile) {
         dataFile.print(logBuf);
         // print to the serial port too:
         Serial.println(logBuf);
       }
-      
+*/      
       pressureData = getPressure();
       Serial.print(F("\nWater Pressure val: "));
       Serial.println(pressureData);
@@ -346,12 +358,12 @@ void loop() {
       vnh_totalData += vnh_curData;
       vnh_curDataInt = (uint32_t) vnh_curData; 
       sprintf(logBuf, "!%dh", vnh_curDataInt);   
-      if (dataFile) {
+/*      if (dataFile) {
         dataFile.print(logBuf);
         // print to the serial port too:
         Serial.println(logBuf);
       }
-
+*/
       pressure_psiData = pressure_barData * 14.5038;
       pressure_psiDataInt = (uint32_t) pressure_psiData;
       Serial.print("Pressure (psi): ");
@@ -363,24 +375,24 @@ void loop() {
       vnh_totalData += vnh_curData;
       vnh_curDataInt = (uint32_t) vnh_curData; 
       sprintf(logBuf, "!%di", vnh_curDataInt);   
-      if (dataFile) {
+/*      if (dataFile) {
         dataFile.print(logBuf);
         // print to the serial port too:
         Serial.println(logBuf);
       }
-
+*/
       vnh_curDataInt = (uint32_t) vnh_totalData/9;
       uploadData(buf, feedCurSensor,vnh_curDataInt);
    
       vnh_curData = getVNHCurrentSensor();
       vnh_curDataInt = (uint32_t) vnh_curData; 
       sprintf(logBuf, "!%dj", vnh_curDataInt);   
-      if (dataFile) {
+/*      if (dataFile) {
         dataFile.print(logBuf);   
         // print to the serial port too:
         Serial.println(logBuf);
       }
-  
+*/  
       client.stop();
       Serial.println("Server disconnected");
     
@@ -391,12 +403,16 @@ void loop() {
       // if you didn't get a connection to the server:
       Serial.println("Connection failed");
     }
-    tempTime = now.second();
+//  tempTime = now.second();
     
     digitalWrite(LED_PIN, LOW);
 
     digitalWrite(VNH_A, LOW);
     digitalWrite(VNH_B, LOW);
+
+    //Serial.println("sleeping 30sec");
+    //delay(1000);
+    LowPowerSleep(360); //deep sleep for ~60 sec
     
     //digitalWrite(M0, HIGH);
     //digitalWrite(M1, HIGH);
@@ -404,12 +420,13 @@ void loop() {
     vnh_curData = getVNHCurrentSensor();
     vnh_curDataInt = (uint32_t) vnh_curData; 
     sprintf(logBuf, "!%dk", vnh_curDataInt);   
-    if (dataFile) {
+/*    if (dataFile) {
       dataFile.println(logBuf);
       dataFile.close();
       // print to the serial port too:
       Serial.println(logBuf);
     }
+*/
   }  
 }
 
